@@ -2,13 +2,13 @@
 session_start();
 require "config/db.php";
 
-// ✅ 檢查登入
+// 檢查登入
 if (!isset($_SESSION['user_name'])) {
     echo "請先登入";
     exit();
 }
 
-// 👉（加分）可以限制只有管理員看 log
+// （加分）可以限制只有管理員看 log
 // if ($_SESSION['user_role'] != 'admin') {
 //     echo "沒有權限查看";
 //     exit();

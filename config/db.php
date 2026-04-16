@@ -10,8 +10,8 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
-    // 測試連線（可留可刪）
-    // echo "DB connected";
+    // 測試連線
+    
     
 } catch (PDOException $e) {
     die("資料庫連線失敗: " . $e->getMessage());

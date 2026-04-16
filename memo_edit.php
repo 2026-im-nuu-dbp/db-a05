@@ -1,95 +1,136 @@
 <?php
-require_once __DIR__ . '/config/auth.php';
-require_once __DIR__ . '/config/db.php';
-requireLogin();
+session_start();
+require "config/db.php";
 
-$user = currentUser();
-$id = (int)($_GET['id'] ?? 0);
-$db = getDB();
-
-$stmt = $db->prepare('SELECT * FROM dememo WHERE id = ?');
-$stmt->execute([$id]);
-$memo = $stmt->fetch();
-
-if (!$memo) {
-  header('Location: /db-a05/index.php');
-  exit;
+// 檢查登入
+if (!isset($_SESSION['user_name'])) {
+    echo "我不認識你，請先登入";
+    exit();
 }
 
-$error = $_SESSION['edit_error'] ?? null;
-unset($_SESSION['edit_error']);
+$user_id = $_SESSION['user_id'];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $content = trim($_POST['content'] ?? '');
-  if (!$content) {
-    $_SESSION['edit_error'] = '內容不可為空';
-    header("Location: /db-a05/memo_edit.php?id=$id");
-    exit;
-  }
 
-  $imageName = $memo['image'];
+// 取得要修改的資料 id
+if (!isset($_GET['id'])) {
+    echo "缺少 ID";
+    exit();
+}
+$id = $_GET['id'];
 
-  if (!empty($_FILES['image']['name'])) {
-    $uploadDir = __DIR__ . '/uploads/';
-    $thumbDir  = __DIR__ . '/uploads/thumbs/';
-    $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    if (!in_array($ext, $allowed)) {
-      $_SESSION['edit_error'] = '僅支援 JPG / PNG / GIF / WEBP';
-      header("Location: /db-a05/memo_edit.php?id=$id");
-      exit;
+
+// 先抓舊資料
+$stmt = $pdo->prepare("SELECT * FROM dememo WHERE id = :id");
+$stmt->execute(['id' => $id]);
+$data = $stmt->fetch();
+
+if (!$data) {
+    echo "找不到資料";
+    exit();
+}
+
+
+// 防止改別人的資料
+if ($data['user_id'] != $user_id) {
+    echo "這不是你的資料";
+    exit();
+}
+
+
+// 表單送出
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+    $content = $_POST['content'];
+
+    // 預設使用舊圖片（add 是 null）
+    $imageName = $data['image'];
+
+    // 有上傳新圖片
+    if (!empty($_FILES['image']['name'])) {
+
+        $file = $_FILES['image'];
+        $imageName = time() . "_" . $file['name'];
+
+        $target = "uploads/" . $imageName;
+
+        if (!move_uploaded_file($file['tmp_name'], $target)) {
+            echo "上傳失敗";
+            exit();
+        }
+
+        //刪除舊圖片
+        if ($data['image']) {
+            if (file_exists("uploads/" . $data['image'])) {
+                unlink("uploads/" . $data['image']);
+            }
+            if (file_exists("uploads/thumbs/" . $data['image'])) {
+                unlink("uploads/thumbs/" . $data['image']);
+            }
+        }
+
+        // 縮圖
+        $thumbPath = "uploads/thumbs/" . $imageName;
+        $type = $file['type'];
+
+        if ($type == "image/jpeg") {
+            $src = imagecreatefromjpeg($target);
+        } elseif ($type == "image/png") {
+            $src = imagecreatefrompng($target);
+        } else {
+            echo "只支援 JPG / PNG";
+            exit();
+        }
+
+        $width = imagesx($src);
+        $height = imagesy($src);
+
+        $newWidth = 200;
+        $newHeight = ($height / $width) * 200;
+
+        $tmp = imagecreatetruecolor($newWidth, $newHeight);
+        imagecopyresampled($tmp, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+        if ($type == "image/jpeg") {
+            imagejpeg($tmp, $thumbPath);
+        } else {
+            imagepng($tmp, $thumbPath);
+        }
     }
-    $imageName = uniqid('memo_', true) . '.' . $ext;
-    move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $imageName);
 
-    $src = imagecreatefromstring(file_get_contents($uploadDir . $imageName));
-    if ($src) {
-      [$w, $h] = getimagesize($uploadDir . $imageName);
-      $maxW = 400;
-      $ratio = $w > $maxW ? $maxW / $w : 1;
-      $thumb = imagescale($src, (int)($w * $ratio), (int)($h * $ratio));
-      imagewebp($thumb, $thumbDir . $imageName);
-      imagedestroy($src);
-      imagedestroy($thumb);
-    }
-  }
+    
+  //UPDATE
+    $stmt = $pdo->prepare("
+        UPDATE dememo 
+        SET content = :content, image = :image 
+        WHERE id = :id
+    ");
 
-  $stmt = $db->prepare('UPDATE dememo SET content = ?, image = ? WHERE id = ?');
-  $stmt->execute([$content, $imageName, $id]);
-  header('Location: /db-a05/index.php');
-  exit;
+    $stmt->execute([
+        'content' => $content,
+        'image' => $imageName,
+        'id' => $id
+    ]);
+
+    echo "修改成功";
 }
 ?>
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>編輯備忘 | DB-A05</title>
-  <link rel="stylesheet" href="/db-a05/assets/style.css" />
-</head>
-<body>
-<nav>
-  <a href="/db-a05/index.php">← 返回清單</a>
-  <a href="/db-a05/logout.php">登出</a>
-</nav>
-<div class="container">
-  <h1>編輯備忘</h1>
-  <?php if ($error): ?>
-    <p class="alert error"><?= htmlspecialchars($error) ?></p>
-  <?php endif; ?>
-  <form action="/db-a05/memo_edit.php?id=<?= $id ?>" method="POST" enctype="multipart/form-data">
-    <label>備忘內容
-      <textarea name="content" rows="6" required><?= htmlspecialchars($memo['content']) ?></textarea>
-    </label>
-    <?php if ($memo['image']): ?>
-      <p>目前圖片：<img src="/db-a05/uploads/thumbs/<?= htmlspecialchars($memo['image']) ?>" style="max-width:200px" /></p>
-    <?php endif; ?>
-    <label>更換圖片（選填）
-      <input type="file" name="image" accept="image/*" />
-    </label>
-    <button type="submit">更新</button>
-  </form>
-</div>
-</body>
-</html>
+
+<!-- 表單 -->
+<form method="POST" enctype="multipart/form-data">
+    <h3>歡迎回來，<?php echo $_SESSION['user_name']; ?></h3>
+
+    <!-- 顯示舊內容 -->
+    <textarea name="content"><?php echo $data['content']; ?></textarea>
+    <br><br>
+
+    <!--顯示舊圖片 -->
+    <?php if ($data['image']) { ?>
+        <img src="uploads/thumbs/<?php echo $data['image']; ?>" width="150">
+        <br><br>
+    <?php } ?>
+
+    <input type="file" name="image">
+    <br><br>
+
+    <input type="submit" value="修改">
+</form>

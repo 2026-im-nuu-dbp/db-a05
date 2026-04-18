@@ -162,3 +162,39 @@ th, td {
 }
 th { color: var(--text-muted); font-weight: 500; }
 tr:hover td { background: var(--surface); }
+
+/* ── Memo Form ── */
+.memo-form {
+  max-width: 640px;
+}
+.memo-form textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+/* ── Current image preview ── */
+.current-image {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.current-image p {
+  font-size: .9rem;
+  color: var(--text-muted);
+}
+.current-image img {
+  max-width: 200px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* ── Badge ── */
+.badge {
+  display: inline-block;
+  padding: .15rem .6rem;
+  border-radius: 6px;
+  font-size: .8rem;
+  font-weight: 500;
+}
+.badge.success { background: rgba(76,201,138,.15); color: var(--success); }
+.badge.error   { background: rgba(255,92,122,.15); color: var(--danger); }

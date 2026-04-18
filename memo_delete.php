@@ -1,57 +1,46 @@
 <?php
-session_start();
-require "config/db.php";
+require_once __DIR__ . '/config/auth.php';
+require_once __DIR__ . '/config/db.php';
+requireLogin();
 
+$user = currentUser();
+$db = getDB();
 
-// 檢查登入
-if (!isset($_SESSION['user_name'])) {
-    echo "我不認識你，請先登入";
-    exit();
-}
-
-$user_id = $_SESSION['user_id'];
-
-
-// 取得要刪除的 id（add / edit 不一樣）
+// 取得要刪除的 id
 if (!isset($_GET['id'])) {
-    echo "缺少 ID";
-    exit();
+    header('Location: /db-a05/index.php');
+    exit;
 }
-$id = $_GET['id'];
+$id = (int) $_GET['id'];
 
-
-// 為了拿圖片 + 驗證（add 沒這段）
-$stmt = $pdo->prepare("SELECT * FROM dememo WHERE id = :id");
-$stmt->execute(['id' => $id]);
+// 為了拿圖片 + 驗證
+$stmt = $db->prepare("SELECT * FROM dememo WHERE id = ?");
+$stmt->execute([$id]);
 $data = $stmt->fetch();
 
 if (!$data) {
-    echo "找不到資料";
-    exit();
+    header('Location: /db-a05/index.php');
+    exit;
 }
-
 
 // 防止刪別人資料
-if ($data['user_id'] != $user_id) {
-    echo "這不是你的資料";
-    exit();
+if ($data['user_id'] != $user['id']) {
+    header('Location: /db-a05/index.php');
+    exit;
 }
 
-
-//刪除圖片
+// 刪除圖片檔案
 if ($data['image']) {
-    if (file_exists("uploads/" . $data['image'])) {
-        unlink("uploads/" . $data['image']);
-    }
-    if (file_exists("uploads/thumbs/" . $data['image'])) {
-        unlink("uploads/thumbs/" . $data['image']);
-    }
+    $origPath = __DIR__ . "/uploads/" . $data['image'];
+    $thumbPath = __DIR__ . "/uploads/thumbs/" . $data['image'];
+    if (file_exists($origPath)) unlink($origPath);
+    if (file_exists($thumbPath)) unlink($thumbPath);
 }
-
 
 // DELETE
-$stmt = $pdo->prepare("DELETE FROM dememo WHERE id = :id");
-$stmt->execute(['id' => $id]);
+$stmt = $db->prepare("DELETE FROM dememo WHERE id = ?");
+$stmt->execute([$id]);
 
-echo "刪除成功";
+header('Location: /db-a05/index.php');
+exit;
 ?>

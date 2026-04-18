@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS `dbusers` (
   `nickname`   VARCHAR(50)     NOT NULL        ,
   `password`   VARCHAR(255)    NOT NULL        ,
   `gender`     ENUM('male','female','other') NOT NULL   ,
-  `interests`  VARCHAR(255)    NOT NULL    
-) 
+  `interests`  VARCHAR(255)    NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

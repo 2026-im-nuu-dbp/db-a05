@@ -19,9 +19,6 @@ try {
     die("資料庫連線失敗: " . $e->getMessage());
 }
 
-/**
- * 取得 PDO 連線實例（供新版程式使用）
- */
 function getDB(): PDO
 {
     global $pdo;

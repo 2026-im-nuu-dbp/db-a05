@@ -14,7 +14,8 @@ $passwordConfirm = $_POST['password_confirm'] ?? '';
 $gender = $_POST['gender'] ?? '';
 $interests = implode(',', $_POST['interests'] ?? []);
 
-function regError(string $msg): void {
+function regError(string $msg): void
+{
   $_SESSION['reg_error'] = $msg;
   header('Location: /db-a05/register.php');
   exit;
